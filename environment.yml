@@ -1,0 +1,18 @@
+name: bearlink
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - fastapi
+  - python-dotenv
+  - qdrant-client
+  - tiktoken
+  - pip:
+      - uvicorn[standard]
+      - openai
+      - streamlit
+      - requests
+      - python-multipart
+      - watchdog
