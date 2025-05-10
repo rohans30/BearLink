@@ -1,5 +1,8 @@
-# bearlink_app.py
+import json
+import requests
 import streamlit as st
+
+API = "http://localhost:8000/api"
 
 st.set_page_config(page_title="BearLink", page_icon="🐻")
 st.markdown(
@@ -27,16 +30,22 @@ DEMO_PROFILES = [
 ]
 
 def backend_search(query: str):
-    return DEMO_PROFILES
+    resp = requests.post(f"{API}/search", json={"query": query})
+    resp.raise_for_status()
+    return resp.json()
 
 def backend_generate_email(profile, context, uploaded_file):
-    return (
-        f"Dear {profile['name']},\n\n"
-        f"I hope you’re doing well. I came across your profile as a {profile['title']} "
-        f"and I’m very interested in learning more about your work.\n\n"
-        f"{context}\n\n"
-        "Best regards,\nYour Name"
-    )
+    data = {
+        "profile": json.dumps(profile),  # convert dict to string
+        "context": context
+    }
+    files = {}
+    if uploaded_file is not None:
+        files["file"] = (uploaded_file.name, uploaded_file.getvalue())
+
+    resp = requests.post(f"{API}/email", data=data, files=files)
+    resp.raise_for_status()
+    return resp.json()["email"]
 
 for key, default in [
     ("stage", "search"),
@@ -67,21 +76,25 @@ elif st.session_state.stage == "results":
         st.session_state.email_generated = ""
 
     st.subheader("Search Results")
-    for idx, prof in enumerate(st.session_state.search_results):
-        st.markdown(
-            f"""
-            <div class="profile-card">
-                <h3>{prof['name']}</h3>
-                <em>{prof['title']}</em>
-                <p>{prof['bio']}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        first_name = prof["name"].split()[0]
-        if st.button(f"Reach out to {first_name}", key=f"reach_{idx}"):
-            st.session_state.selected_profile = prof
-            st.session_state.stage = "confirm"
+
+    if not st.session_state.search_results:
+        st.info("No profiles found for your query.")
+    else:
+        for idx, prof in enumerate(st.session_state.search_results):
+            st.markdown(
+                f"""
+                <div class="profile-card">
+                    <h3>{prof['name']}</h3>
+                    <em>{prof['title']}</em>
+                    <p>{prof['bio']}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            first_name = prof["name"].split()[0]
+            if st.button(f"Reach out to {first_name}", key=f"reach_{idx}"):
+                st.session_state.selected_profile = prof
+                st.session_state.stage = "confirm"
 
 elif st.session_state.stage == "confirm":
     prof = st.session_state.selected_profile

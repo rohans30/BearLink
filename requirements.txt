@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+qdrant-client
+tiktoken
+streamlit
+requests
+python-multipart
+watchdog

@@ -1,0 +1,23 @@
+# Python caches and bytecode
+__pycache__/
+*.py[cod]
+
+# Conda or venv dirs
+.env/
+.venv/
+bearlink_env/
+
+# dotenv secrets
+.env
+
+# Streamlit local state
+.streamlit/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS-specific
+.DS_Store
+
+# Logs
+*.log
