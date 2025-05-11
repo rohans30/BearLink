@@ -9,6 +9,9 @@ import tiktoken
 from openai import OpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
+import PyPDF2
+import io
+import docx
 
 # — Initialization —
 load_dotenv()
@@ -118,18 +121,47 @@ def search(req: SearchRequest):
     return results
 
 # — Endpoint: email generation —
+async def extract_text_from_file(file: UploadFile) -> str:
+    content = await file.read()
+    file_extension = file.filename.split('.')[-1].lower()
+    
+    if file_extension == 'pdf':
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text
+    elif file_extension == 'txt':
+        return content.decode('utf-8')
+    elif file_extension == 'docx':
+        doc = docx.Document(io.BytesIO(content))
+        text = "\n".join([para.text for para in doc.paragraphs])
+        return text
+    else:
+        raise ValueError(f"Unsupported file type: {file_extension}")
+
 @app.post("/api/email")
 async def email(
     profile: str = Form(...),
     context: str = Form(...),
     file: UploadFile = File(None)
 ):
-    profile_dict = json.loads(profile)  # convert from JSON string to dict
+    profile_dict = json.loads(profile) 
+    file_context = ""
+    if file:
+        try:
+            file_context = await extract_text_from_file(file)
+            file_context = f"\nAdditional context from uploaded file:\n{file_context}"
+        except Exception as e:
+            return {"error": f"Error processing file: {str(e)}"}
+    
     prompt = (
         f"Write a friendly, concise LinkedIn message to {profile_dict.get('profile_id', 'someone')} "
         f"({profile_dict.get('current_company', 'their current company')}).\n"
         f"You want to connect because {context}."
+        f"{file_context}"
     )
+    
     resp = openai_client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}]

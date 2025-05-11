@@ -8,3 +8,5 @@ streamlit
 requests
 python-multipart
 watchdog
+PyPDF2
+python-docx

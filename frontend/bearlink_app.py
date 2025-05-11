@@ -1,27 +1,129 @@
 import json
 import requests
 import streamlit as st
+import time
 
 API = "http://localhost:8000/api"
 
-st.set_page_config(page_title="BearLink", page_icon="🐻")
+st.set_page_config(
+    page_title="BearLink",
+    page_icon="🐻",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 st.markdown(
     """
     <style>
-    .profile-card {
-        background: rgba(0,0,0,0.1);
-        padding: 1rem;
-        border-radius: 1rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    .main {
+        padding: 2rem;
     }
-    .profile-card h3 { margin: 0; font-size: 1.2rem; }
-    .profile-card em { color: #888; font-size: 0.9rem; }
-    .profile-card p { margin: 0.5rem 0 0.8rem; }
+    .profile-card {
+        background: rgba(255,255,255,0.1);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .profile-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+    .profile-card h3 { 
+        margin: 0; 
+        font-size: 1.4rem;
+        color: #1E88E5;
+    }
+    .profile-card em { 
+        color: #666; 
+        font-size: 1rem;
+        display: block;
+        margin: 0.5rem 0;
+    }
+    .profile-card p { 
+        margin: 0.8rem 0;
+        color: #444;
+        line-height: 1.5;
+    }
+    .stButton button {
+        width: 100%;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .stButton button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .search-box {
+        background: rgba(255,255,255,0.1);
+        padding: 2rem;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+    }
+    .email-preview {
+        background: rgba(255,255,255,0.1);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        margin: 1rem 0;
+    }
+    .reachout-cool {
+        background: linear-gradient(90deg, #003262 60%, #FDB515 100%);
+        color: white;
+        border: none;
+        border-radius: 0.7rem;
+        padding: 0.7rem 1.5rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(0,50,98,0.10);
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+    }
+    .reachout-cool:hover {
+        background: linear-gradient(90deg, #002147 60%, #FFD700 100%);
+        transform: translateY(-2px) scale(1.03);
+        color: #003262;
+    }
+    .back-to-search-btn {
+        background: #eee;
+        color: #003262;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        margin-top: 0.5rem;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+    }
+    .back-to-search-btn:hover {
+        background: #003262;
+        color: #fff;
+    }
+    h1 {
+        margin-bottom: 0.5rem !important;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
+
+
+with st.sidebar:
+    st.image("assets/img/satherTower.png", width=200)
+    st.title("BearLink")
+    st.markdown("---")
+    st.markdown("### About")
+    st.markdown("Discover and reach out to the UC Berkeley Alumni Network through personalized messages.")
+    st.markdown("---")
+    st.markdown("### How it works")
+    st.markdown("1. Find fellow Berkeley alumni in any avenue you are interested in")
+    st.markdown("2. Choose someone to reach out to")
+    st.markdown("3. Share your Berkeley story and any experiences and upload relevant documents")
+    st.markdown("4. Get a personalized message to start the conversation")
 
 DEMO_PROFILES = [
     {"name": "Alice Sandy", "title": "Software Engineer at Amazon", "bio": "Built scalable systems on the backend."},
@@ -53,7 +155,9 @@ for key, default in [
     ("selected_profile", None),
     ("compose_info", ""),
     ("uploaded_file", None),
-    ("email_generated", "")
+    ("email_generated", ""),
+    ("is_loading", False),
+    ("search_query", "")
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -61,25 +165,58 @@ for key, default in [
 st.title("🐻 BearLink")
 
 if st.session_state.stage == "search":
-    query = st.text_input("🔍 Search the UC Berkeley Alumni Network")
-    if st.button("Search"):
-        st.session_state.search_results = backend_search(query)
-        st.session_state.stage = "results"
+    st.markdown('<div class="search-box">', unsafe_allow_html=True)
+    st.markdown("### Find Your Fellow Golden Bear Alumni Network")
+    query = st.text_input(
+        "What are you looking for?",
+        key="search_input",
+        placeholder="'Haas MBA graduates', 'Berkeley research in AI', 'Department of Music alumni'"
+    )
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("Find Bears", use_container_width=True):
+            if query.strip():
+                st.session_state.search_query = query
+                st.session_state.is_loading = True
+                st.session_state.stage = "loading_search"
+                st.rerun()
+            else:
+                st.warning("Please tell us what you're looking for")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+elif st.session_state.stage == "loading_search":
+    with st.spinner("🔍 Finding your fellow Golden Bears..."):
+        try:
+            st.session_state.search_results = backend_search(st.session_state.search_query)
+            st.session_state.is_loading = False
+            st.session_state.stage = "results"
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error during search: {str(e)}")
+            st.session_state.is_loading = False
+            st.session_state.stage = "search"
+            st.rerun()
 
 elif st.session_state.stage == "results":
-    if st.button("🔄 New Search"):
-        st.session_state.stage = "search"
-        st.session_state.search_results = []
-        st.session_state.selected_profile = None
-        st.session_state.compose_info = ""
-        st.session_state.uploaded_file = None
-        st.session_state.email_generated = ""
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("🔄 New Search", use_container_width=True):
+            #clear all relevant state
+            st.session_state.search_results = []
+            st.session_state.selected_profile = None
+            st.session_state.compose_info = ""
+            st.session_state.uploaded_file = None
+            st.session_state.email_generated = ""
+            st.session_state.search_query = ""
+            st.session_state.is_loading = False
+            st.session_state.stage = "search"
+            st.rerun()
 
-    st.subheader("Search Results")
-
+    st.markdown("### Found Bears")
     if not st.session_state.search_results:
-        st.info("No profiles found for your query.")
+        st.info("No matching profiles found. Try different keywords or broaden your search.")
     else:
+        st.markdown(f"Found {len(st.session_state.search_results)} fellow Golden Bears matching your search")
         for idx, prof in enumerate(st.session_state.search_results):
             st.markdown(
                 f"""
@@ -92,73 +229,107 @@ elif st.session_state.stage == "results":
                 unsafe_allow_html=True
             )
             first_name = prof["name"].split()[0]
-            if st.button(f"Reach out to {first_name}", key=f"reach_{idx}"):
+
+            if st.button(f"🤝 Reach out to {first_name}", key=f"reach_{idx}", use_container_width=True):
                 st.session_state.selected_profile = prof
                 st.session_state.stage = "confirm"
+                st.rerun()
 
 elif st.session_state.stage == "confirm":
     prof = st.session_state.selected_profile
-    st.write(f"Would you like me to write an email to **{prof['name']}**?")
+    st.markdown(f"### Would you like to reach out to {prof['name']}?")
+    st.markdown(f"**Current Role:** {prof['title']}")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Yes"):
+        if st.button("Yes, help me reach out", use_container_width=True):
             st.session_state.stage = "compose"
+            st.rerun()
     with col2:
-        if st.button("No"):
-            st.session_state.stage = "search"
+        if st.button("No, find other searches", use_container_width=True):
+
             st.session_state.search_results = []
             st.session_state.selected_profile = None
+            st.session_state.stage = "search"
+            st.rerun()
 
 elif st.session_state.stage == "compose":
     prof = st.session_state.selected_profile
-    st.subheader(f"Compose email to {prof['name']}")
-
-    st.text_area(
-        "Additional details or context:",
+    st.markdown(f"### Compose message to {prof['name']}")
+    
+    st.markdown("#### Additional Context")
+    st.markdown("Tell us why you want to reach out (such as any shared interests, career advice, networking)")
+    context = st.text_area(
+        "Your message context:",
         value=st.session_state.compose_info,
         key="compose_info",
-        height=100
+        height=100,
+        placeholder="I'm interested in reaching out because..."
     )
 
-    st.file_uploader(
-        "Upload a document (e.g., resume):",
-        type=["pdf"],
-        key="uploaded_file"
+    st.markdown("#### Upload Documents (Optional)")
+    st.markdown("Upload any relevant documents to help generate a more personalized message")
+    uploaded_file = st.file_uploader(
+        "Choose a file",
+        type=["pdf", "txt", "doc", "docx"],
+        key="uploaded_file",
+        help="Upload any relevant documents (PDF, TXT, DOCX)"
     )
-    if st.session_state.uploaded_file is not None:
-        st.write(f"**Currently uploaded:** {st.session_state.uploaded_file.name}")
+    if uploaded_file is not None:
+        st.success(f"✅ Uploaded: {uploaded_file.name}")
 
-    if st.button("Generate Email"):
-        st.session_state.email_generated = backend_generate_email(
-            prof,
-            st.session_state.compose_info,
-            st.session_state.uploaded_file
-        )
-        st.session_state.stage = "done"
+    if st.button("Generate Message", use_container_width=True):
+        st.session_state.stage = "loading_email"
+        st.rerun()
 
-elif st.session_state.stage == "done":
-    st.subheader("Generated Email")
-    st.text_area(
-        "Your draft email",
-        value=st.session_state.email_generated,
-        height=300,
-        label_visibility="hidden"
-    )
+    if st.button("⬅️ Back to Search", key="back_to_search", use_container_width=True):
+        for k in ["stage","search_results","selected_profile",
+                  "compose_info","uploaded_file","email_generated",
+                  "is_loading","search_query"]:
+            st.session_state.pop(k, None)
+        st.session_state.stage = "search"
+        st.rerun()
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("Regenerate Email"):
+elif st.session_state.stage == "loading_email":
+    with st.spinner("✍️ Writing your personalized message..."):
+        try:
             st.session_state.email_generated = backend_generate_email(
                 st.session_state.selected_profile,
                 st.session_state.compose_info,
                 st.session_state.uploaded_file
             )
-    with col2:
-        if st.button("Edit Email Context"):
+            st.session_state.stage = "done"
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error generating message: {str(e)}")
             st.session_state.stage = "compose"
+            st.rerun()
+
+elif st.session_state.stage == "done":
+    st.markdown("### Your Personalized Message")
+    st.markdown('<div class="email-preview">', unsafe_allow_html=True)
+    st.text_area(
+        "Message preview",
+        value=st.session_state.email_generated,
+        height=300,
+        label_visibility="hidden"
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🔄 Regenerate", use_container_width=True):
+            st.session_state.stage = "loading_email"
+            st.rerun()
+    with col2:
+        if st.button("✏️ Edit Context", use_container_width=True):
+            st.session_state.stage = "compose"
+            st.rerun()
     with col3:
-        if st.button("Start New Search"):
+        if st.button("🔍 New Search", use_container_width=True):
+            # Clear all state
             for k in ["stage","search_results","selected_profile",
-                      "compose_info","uploaded_file","email_generated"]:
+                      "compose_info","uploaded_file","email_generated",
+                      "is_loading","search_query"]:
                 st.session_state.pop(k, None)
             st.session_state.stage = "search"
+            st.rerun()
