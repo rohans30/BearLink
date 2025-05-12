@@ -11,7 +11,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 import PyPDF2
 import io
-import docx
+#import docx
 
 # — Initialization —
 load_dotenv()
@@ -56,7 +56,11 @@ def profile_to_text(profile):
 @app.on_event("startup")
 def startup_event():
     profiles = []
-    for path in glob.glob("../linkedin_profiles_dev/linkedin_profiles_raw_*.json"):
+    json_files = glob.glob("../linkedin_profiles_prod/linkedin_profiles_raw_*.json")
+    print(f"Found {len(json_files)} JSON files to process")
+    
+    for path in json_files:
+        print(f"Processing file: {path}")
         with open(path) as f:
             data = json.load(f)
             if isinstance(data, list):
@@ -72,7 +76,9 @@ def startup_event():
     idx = 0
     points = []
     for p in profiles:
-        if not p.get("id"): continue
+        if not p.get("id"): 
+            print(f"Skipping profile without ID: {p.get('name', 'Unknown')}")
+            continue
         txt = profile_to_text(p)
         for chunk_i, piece in enumerate(chunk_by_tokens(txt)):
             emb = openai_client.embeddings.create(model=EMBED_MODEL, input=piece).data[0].embedding
@@ -87,8 +93,10 @@ def startup_event():
             if len(points) >= 100:
                 qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
                 points = []
+                print(f"Processed {idx} chunks so far")
     if points:
         qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+        print(f"Final batch: processed {idx} chunks total")
 
 @app.post("/api/search")
 def search(req: SearchRequest):
