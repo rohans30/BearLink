@@ -36,14 +36,14 @@ st.markdown(
         color: #1E88E5;
     }
     .profile-card em { 
-        color: #666; 
+        color: #ffffff; 
         font-size: 1rem;
         display: block;
         margin: 0.5rem 0;
     }
     .profile-card p { 
         margin: 0.8rem 0;
-        color: #444;
+        color: #ffffff;
         line-height: 1.5;
     }
     .stButton button {
@@ -221,7 +221,7 @@ elif st.session_state.stage == "results":
             st.markdown(
                 f"""
                 <div class="profile-card">
-                    <h3>{prof['name']}</h3>
+                    <h3><a href="{prof.get('url', '#')}" target="_blank" style="text-decoration:none; color:inherit;">{prof['name']}</a></h3>
                     <em>{prof['title']}</em>
                     <p>{prof['bio']}</p>
                 </div>

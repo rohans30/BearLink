@@ -86,7 +86,8 @@ def startup_event():
                 "profile_id": p["id"],
                 "current_company": (p.get("current_company") or {}).get("name"),
                 "experience_companies": [e.get("company") for e in (p.get("experience") or []) if e.get("company")],
-                "text": piece
+                "text": piece,
+                "url": p.get("url"),
             }
             points.append(PointStruct(id=idx, vector=emb, payload=payload))
             idx += 1
@@ -125,6 +126,7 @@ def search(req: SearchRequest):
             "profile_id": p.get("profile_id"),
             "current_company": p.get("current_company"),
             "experience_companies": p.get("experience_companies"),
+            "url": p.get("url"),
         })
     return results
 
