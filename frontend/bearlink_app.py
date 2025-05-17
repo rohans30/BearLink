@@ -25,6 +25,7 @@ st.markdown(
         margin-bottom: 1.5rem;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         transition: transform 0.2s;
+        color: var(--text-color);
     }
     .profile-card:hover {
         transform: translateY(-2px);
@@ -33,17 +34,17 @@ st.markdown(
     .profile-card h3 { 
         margin: 0; 
         font-size: 1.4rem;
-        color: #1E88E5;
+        color: var(--primary-color);
     }
     .profile-card em { 
-        color: #ffffff; 
+        color: var(--secondary-background-color);
         font-size: 1rem;
         display: block;
         margin: 0.5rem 0;
     }
     .profile-card p { 
         margin: 0.8rem 0;
-        color: #ffffff;
+        color: var(--text-color);
         line-height: 1.5;
     }
     .stButton button {
@@ -62,12 +63,14 @@ st.markdown(
         padding: 2rem;
         border-radius: 1rem;
         margin-bottom: 2rem;
+        color: var(--text-color);
     }
     .email-preview {
         background: rgba(255,255,255,0.1);
         padding: 1.5rem;
         border-radius: 1rem;
         margin: 1rem 0;
+        color: var(--text-color);
     }
     .reachout-cool {
         background: linear-gradient(90deg, #003262 60%, #FDB515 100%);
@@ -134,11 +137,21 @@ DEMO_PROFILES = [
 def backend_search(query: str):
     resp = requests.post(f"{API}/search", json={"query": query})
     resp.raise_for_status()
-    return resp.json()
+    results = resp.json()
+    
+    seen_ids = set()
+    unique_results = []
+    for result in results:
+        profile_id = result.get('profile_id')
+        if profile_id and profile_id not in seen_ids:
+            seen_ids.add(profile_id)
+            unique_results.append(result)
+    
+    return unique_results
 
 def backend_generate_email(profile, context, uploaded_file):
     data = {
-        "profile": json.dumps(profile),  # convert dict to string
+        "profile": json.dumps(profile), 
         "context": context
     }
     files = {}
@@ -218,12 +231,17 @@ elif st.session_state.stage == "results":
     else:
         st.markdown(f"Found {len(st.session_state.search_results)} fellow Golden Bears matching your search")
         for idx, prof in enumerate(st.session_state.search_results):
+            bio_text = prof['bio']
+            parts = bio_text.split("\\n\\n")
+            display_bio_parts = parts[1:] if len(parts) > 1 else []
+            clean_bio = "\n\n".join(display_bio_parts)
+            
             st.markdown(
                 f"""
                 <div class="profile-card">
                     <h3><a href="{prof.get('url', '#')}" target="_blank" style="text-decoration:none; color:inherit;">{prof['name']}</a></h3>
                     <em>{prof['title']}</em>
-                    <p>{prof['bio']}</p>
+                    <p>{clean_bio}</p>
                 </div>
                 """,
                 unsafe_allow_html=True

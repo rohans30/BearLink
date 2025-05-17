@@ -110,24 +110,31 @@ def search(req: SearchRequest):
         with_payload=True
     )
     print(f"Search returned {len(hits)} results")
-    results = []
+    
+    # Use a dictionary to deduplicate results by profile_id
+    results_dict = {}
     for h in hits:
         p = h.payload
-        text = p.get("text", "")
-        lines = text.split("\\n\\n")
-        if len(lines) > 0 and "—" in lines[0]:
-            name, title = lines[0].split("—", 1)
-        else:
-            name, title = "Unknown", "Unknown"
-        results.append({
-            "name": name.strip(),
-            "title": title.strip(),
-            "bio": text,
-            "profile_id": p.get("profile_id"),
-            "current_company": p.get("current_company"),
-            "experience_companies": p.get("experience_companies"),
-            "url": p.get("url"),
-        })
+        profile_id = p.get("profile_id")
+        if profile_id not in results_dict:  # Only add if we haven't seen this profile before
+            text = p.get("text", "")
+            lines = text.split("\\n\\n")
+            if len(lines) > 0 and "—" in lines[0]:
+                name, title = lines[0].split("—", 1)
+            else:
+                name, title = "Unknown", "Unknown"
+            results_dict[profile_id] = {
+                "name": name.strip(),
+                "title": title.strip(),
+                "bio": text,
+                "profile_id": profile_id,
+                "current_company": p.get("current_company"),
+                "experience_companies": p.get("experience_companies"),
+                "url": p.get("url"),
+            }
+    
+    # Convert dictionary values back to list
+    results = list(results_dict.values())
     return results
 
 # — Endpoint: email generation —
